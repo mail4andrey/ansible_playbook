@@ -3,7 +3,8 @@ FROM gliderlabs/alpine:latest
 RUN \
   apk-install \
     curl \
-    build-essential \
+    g++ \
+    gcc \
     openssh-client \
     python \
     py-boto \
@@ -15,7 +16,7 @@ RUN \
     py-setuptools \
     py-yaml \
     tar && \
-  pip install --upgrade pip python-keyczar && \
+  pip install --upgrade pip python-keyczar pycrypto && \
   rm -rf /var/cache/apk/*
 
 RUN mkdir /etc/ansible/ /ansible
