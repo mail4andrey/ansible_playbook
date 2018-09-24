@@ -3,8 +3,7 @@ FROM gliderlabs/alpine:latest
 RUN \
   apk-install \
     curl \
-    g++ \
-    gcc \
+    build-essential \
     openssh-client \
     python \
     py-boto \
