@@ -3,6 +3,7 @@ FROM gliderlabs/alpine:latest
 RUN \
   apk-install \
     curl \
+    g++ \
     gcc \
     openssh-client \
     python \
