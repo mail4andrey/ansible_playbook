@@ -21,7 +21,7 @@ RUN \
     py-setuptools \
     py-yaml \
     tar && \
-  pip install --upgrade pip setuptools python-keyczar pycrypto cryptography ansible pywinrm && \
+  pip install --upgrade pip setuptools python-keyczar pycrypto cryptography ansible pywinrm requests-credssp && \
   rm -rf /var/cache/apk/*
 
 RUN mkdir /etc/ansible/ /ansible
