@@ -1,0 +1,105 @@
+Настройка тестирования на локальной windows машине
+Есть два варианта тестирования скриптов 
+
+1) Через Cygwin
+2) Через Docker
+
+Настройка Cygwin
+    http://www.oznetnerd.com/installing-ansible-windows/
+    1) Скачать и установить Cygwin. https://cygwin.com/install.html
+        С установленным модулем lynx.
+        При выборе модулей для установки, включить View=Full и Search=linx.
+
+    2) В терминале cygwin установить (точно не помню что уже ставил, дополнить в случае изменений)
+        2.1)
+            lynx -source rawgit.com/transcode-open/apt-cyg/master/apt-cyg > apt-cyg
+            install apt-cyg /bin
+            apt-cyg install curl cygwin32-gcc-g++ gcc-core gcc-g++ git libffi-devel nano openssl openssl-devel python-crypto python2 python2-devel python2-openssl python2-pip python2-setuptools tree
+            pip install --upgrade pip setuptools cryptography pywinrm requests-credssp ansible greenlet eventlet
+        
+        *) можно обновить все pip модули
+            pip list --outdated --format=freeze | grep -v '^\-e' | cut -d = -f 1  | xargs -n1 pip install -U
+
+    3) Деплой из Cygwin64Terminal. /c/ - диск C
+        cd /cygdrive/c/<ansible-deploy-path>
+
+        # --ask-pass  --user <USERNAME> - логин вводится через командную строку, пароль вводится пользователем
+        ansible-playbook -i .ansible/environments/local .ansible/playbooks/ping.yml -vvvv --ask-pass  --user <USERNAME> --tags "ping"
+
+        # если логин и пароль указаны в inventory
+        ansible-playbook -i .ansible/environments/local .ansible/playbooks/ping.yml -vvvv 
+        
+
+Настройка Docker
+    https://www.docker.com/
+
+    0) Включить HyperV на ПК.
+        0.1) Включить HyperV в биосе.
+
+        0.2) Выполнить скрипт powershell от администратора:
+            Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V -All
+
+    1) Установить докер
+    https://store.docker.com/editions/community/docker-ce-desktop-windows
+        
+    Докер контейнер с послдней версией ansible + winrm + credssp
+        https://hub.docker.com/r/mail4andrey/ansible_playbook/
+
+    2) Деплой из cmd.
+        cd C:\<ansible-deploy-path>
+        docker run --rm -it --privileged -v %CD%:/ansible/playbooks mail4andrey/ansible_playbook -i .ansible/environments/local .ansible/playbooks/ping.yml -vvvv
+
+Настроить WinRM на локальной машине.
+    Powershell от администратора:
+    # https://docs.ansible.com/ansible/latest/user_guide/windows_setup.html
+
+    # Upgrading PowerShell and .NET Framework
+    $url = "https://raw.githubusercontent.com/jborean93/ansible-windows/master/scripts/Upgrade-PowerShell.ps1"
+    $file = "$env:temp\Upgrade-PowerShell.ps1"
+    $username = Read-Host -Prompt 'Input your username (optional)'
+    $password = Read-Host -Prompt 'Input your password (optional)'
+
+    (New-Object -TypeName System.Net.WebClient).DownloadFile($url, $file)
+    Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Force
+
+    # version can be 3.0, 4.0 or 5.1
+    &$file -Version 5.1 -Username $username -Password $password -Verbose
+
+    # вернуть запуск сценариев на дефолт 
+    # this isn't needed but is a good security practice to complete
+    # Set-ExecutionPolicy -ExecutionPolicy Restricted -Force
+
+    # WinRM Memory Hotfix
+    $url = "https://raw.githubusercontent.com/jborean93/ansible-windows/master/scripts/Install-WMF3Hotfix.ps1"
+    $file = "$env:temp\Install-WMF3Hotfix.ps1"
+    (New-Object -TypeName System.Net.WebClient).DownloadFile($url, $file)
+    powershell.exe -ExecutionPolicy ByPass -File $file -Verbose
+
+    # WinRM Setup with -EnableCredSSP 
+    $url = "https://raw.githubusercontent.com/ansible/ansible/devel/examples/scripts/ConfigureRemotingForAnsible.ps1"
+    $file = "$env:temp\ConfigureRemotingForAnsible.ps1"
+    (New-Object -TypeName System.Net.WebClient).DownloadFile($url, $file)
+    powershell.exe -ExecutionPolicy ByPass -File $file -EnableCredSSP -Verbose
+
+
+Установить private для сетей HyperV (если используем докер) и включаем WinRM на машине (cmd под администратором)
+    powershell.exe -ExecutionPolicy ByPass Set-NetConnectionProfile -interfacealias 'vEthernet (DockerNAT)' -NetworkCategory Private    
+    winrm quickconfig
+
+
+Авторизация уже настроена по CredSSP (для доменных учеток) (в скрипте включается)
+    Можно отдельно включить (под администратором)
+        powershell.exe Enable-WSManCredSSP -Role Server -Force
+    Больше вариантов авторизаций тут - https://docs.ansible.com/ansible/latest/user_guide/windows_winrm.html
+
+
+Для ввода пользователя, пароля и выбора машины смотри 
+    environments/local/inventory.yml
+
+
+Работа с докером:
+    Локальный билд докера из исходников
+        docker build <path-to-docker-project>
+
+    Обновить докер контейнер после изменений в гите и успешном билде в докере.
+        docker pull <docker-name>
